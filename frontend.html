@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Intelligence Platform | AWS Serverless</title>
+<script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.6/dist/amazon-cognito-identity.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary: #ec4899;
+    --accent: #14b8a6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg-dark: #0a0a0f;
+    --bg-card: rgba(15, 15, 25, 0.6);
+    --border: rgba(99, 102, 241, 0.2);
+    --text: #e5e7eb;
+    --text-dim: #9ca3af;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+  
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.1) 0%, transparent 50%);
+    animation: bgShift 20s ease infinite;
+    z-index: -1;
+  }
+  
+  @keyframes bgShift {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.1) rotate(5deg); }
+  }
+
+  #authPage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    position: relative;
+  }
+  
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--primary);
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: float 10s infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50% { transform: translateY(-100px) translateX(50px); }
+  }
+  
+  .auth-container {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 50px 40px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.6s ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .auth-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+    animation: shimmer 3s ease infinite;
+  }
+  
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  
+  .logo { text-align: center; margin-bottom: 40px; }
+  
+  .logo-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    animation: pulse 2s ease infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  .logo h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  
+  .logo p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    font-weight: 300;
+  }
+  
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 35px;
+    background: rgba(15, 15, 25, 0.5);
+    padding: 6px;
+    border-radius: 12px;
+  }
+  
+  .tab {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 8px;
+    font-family: 'Outfit', sans-serif;
+  }
+  
+  .tab.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+  
+  .form-group { margin-bottom: 24px; }
+  
+  label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  
+  input, select {
+    width: 100%;
+    padding: 14px 18px;
+    background: rgba(15, 15, 25, 0.8);
+    border: 1.5px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.3s;
+  }
+  
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(15, 15, 25, 0.95);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  }
+  
+  input.error-state {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+  }
+  
+  button.primary {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Outfit', sans-serif;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  button.primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+  }
+  
+  button.primary:active { transform: translateY(0); }
+  
+  button.primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .btn-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  
+  .forgot-link {
+    display: block;
+    text-align: right;
+    margin-top: -12px;
+    margin-bottom: 20px;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.3s;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: 'Outfit', sans-serif;
+    margin-left: auto;
+  }
+  
+  .forgot-link:hover {
+    color: var(--secondary);
+    text-decoration: underline;
+  }
+  
+  .back-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 8px 0;
+    font-family: 'Outfit', sans-serif;
+    transition: color 0.3s;
+  }
+  
+  .back-link:hover { color: var(--primary); }
+  
+  .resend-link {
+    text-align: center;
+    margin-top: 16px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  
+  .resend-link button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    text-decoration: underline;
+    padding: 0;
+  }
+  
+  .resend-link button:disabled {
+    color: var(--text-dim);
+    text-decoration: none;
+    cursor: not-allowed;
+  }
+  
+  .form-header { margin-bottom: 28px; text-align: center; }
+  
+  .form-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  
+  .form-header p {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  
+  .step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  
+  .step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.3);
+    transition: all 0.3s;
+  }
+  
+  .step-dot.active {
+    background: var(--primary);
+    width: 24px;
+    border-radius: 4px;
+  }
+  
+  .step-dot.complete { background: var(--success); }
+  
+  .message {
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .message.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+  }
+  
+  .message.success {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+  }
+
+  .message.info {
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+  }
+
+  input.code-input {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 0.4em;
+    font-weight: 700;
+  }
+
+  .password-hints {
+    background: rgba(99, 102, 241, 0.05);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: -12px;
+    margin-bottom: 20px;
+  }
+  
+  .password-hints small {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    display: block;
+  }
+
+  /* DASHBOARD */
+  #dashboardPage {
+    display: none;
+    padding: 30px 20px;
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .container { max-width: 1600px; margin: 0 auto; }
+  
+  header {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 25px 35px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .header-left h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .header-left p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    font-weight: 400;
+  }
+  
+  button.secondary {
+    padding: 10px 20px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.3s;
+  }
+  
+  button.secondary:hover {
+    background: rgba(239, 68, 68, 0.25);
+    transform: translateY(-2px);
+  }
+  
+  /* DASHBOARD TABS */
+  .dash-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 25px;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .dash-tab {
+    flex: 1;
+    padding: 12px 18px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s;
+    border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .dash-tab.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+  
+  .dash-tab:hover:not(.active) {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text);
+  }
+  
+  .dash-section { display: none; animation: fadeIn 0.4s ease-out; }
+  .dash-section.active { display: block; }
+  
+  .controls {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 25px 30px;
+    margin-bottom: 30px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .controls label {
+    font-weight: 700;
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
+  
+  .controls select {
+    width: auto;
+    min-width: 240px;
+    padding: 12px 18px;
+    font-weight: 600;
+  }
+  
+  /* UPLOAD SECTION */
+  .upload-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 35px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .upload-card h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .upload-card .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-bottom: 25px;
+  }
+  
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  
+  @media (max-width: 700px) {
+    .upload-grid { grid-template-columns: 1fr; }
+  }
+  
+  /* Drag-and-drop zone */
+  .dropzone {
+    border: 2px dashed rgba(99, 102, 241, 0.4);
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(99, 102, 241, 0.03);
+    margin-bottom: 20px;
+  }
+  
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.08);
+    transform: translateY(-2px);
+  }
+  
+  .dropzone-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+  
+  .dropzone-text {
+    font-size: 1.05rem;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  
+  .dropzone-hint {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  
+  .dropzone.has-file {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.05);
+  }
+  
+  .dropzone.has-file .dropzone-text {
+    color: var(--success);
+  }
+  
+  #fileInput { display: none; }
+  
+  .upload-progress {
+    display: none;
+    margin-top: 15px;
+    padding: 12px 16px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+    color: var(--primary);
+    font-size: 0.9rem;
+  }
+  
+  .upload-progress.visible { display: block; }
+  
+  /* RECENT UPLOADS LIST */
+  .uploads-list {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .uploads-list h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+  
+  .uploads-list .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  
+  .upload-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    background: rgba(15, 15, 25, 0.4);
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    transition: all 0.3s;
+  }
+  
+  .upload-item:hover {
+    background: rgba(15, 15, 25, 0.6);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateX(4px);
+  }
+  
+  .upload-item-icon {
+    font-size: 1.6rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  
+  .upload-item-details { flex: 1; min-width: 0; }
+  
+  .upload-item-name {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .upload-item-meta {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
+  
+  .upload-item-size {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: 'Space Mono', monospace;
+  }
+  
+  /* FORECASTS UI */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .stat-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: scaleIn 0.5s ease-out backwards;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .stat-card:nth-child(1) { animation-delay: 0.1s; }
+  .stat-card:nth-child(2) { animation-delay: 0.2s; }
+  .stat-card:nth-child(3) { animation-delay: 0.3s; }
+  .stat-card:nth-child(4) { animation-delay: 0.4s; }
+  .stat-card:nth-child(5) { animation-delay: 0.5s; }
+  
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 50px rgba(99, 102, 241, 0.3);
+  }
+  
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+  }
+  
+  .stat-icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.9; }
+  
+  .stat-label {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  
+  .stat-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    font-family: 'Space Mono', monospace;
+  }
+  
+  .stat-sub {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    font-weight: 400;
+  }
+  
+  .alerts-section {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 20px;
+    padding: 25px 30px;
+    margin-bottom: 30px;
+    display: none;
+    box-shadow: 0 10px 40px rgba(239, 68, 68, 0.15);
+  }
+  
+  .alerts-section.visible { display: block; animation: slideIn 0.5s ease-out; }
+  
+  .alerts-title {
+    color: #fca5a5;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+  }
+  
+  .alert-pulse {
+    width: 10px;
+    height: 10px;
+    background: var(--danger);
+    border-radius: 50%;
+    animation: alertPulse 1.5s ease infinite;
+  }
+  
+  @keyframes alertPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+  
+  .alert-item {
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    transition: all 0.3s;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  
+  .alert-item:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: translateX(5px);
+  }
+  
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    margin-bottom: 30px;
+  }
+  
+  @media (max-width: 1200px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+  
+  .chart-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s;
+  }
+  
+  .chart-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 50px rgba(99, 102, 241, 0.2);
+  }
+  
+  .chart-title {
+    font-weight: 700;
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .chart-wrap { position: relative; height: 300px; }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  th, td {
+    padding: 16px 20px;
+    text-align: left;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  }
+  
+  th {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  
+  tr { transition: all 0.2s; }
+  tr:hover { background: rgba(99, 102, 241, 0.05); }
+  
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .badge-weekend {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  
+  .badge-weekday {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 60px;
+    color: var(--text-dim);
+  }
+  
+  .spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 12px;
+  }
+  
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  @media (max-width: 768px) {
+    .stats { grid-template-columns: 1fr; }
+    .charts-grid { grid-template-columns: 1fr; }
+    header { padding: 20px; }
+    .auth-container { padding: 35px 25px; }
+    .dash-tabs { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="particle" style="top: 10%; left: 20%; animation-delay: 0s;"></div>
+<div class="particle" style="top: 30%; left: 80%; animation-delay: 2s;"></div>
+<div class="particle" style="top: 60%; left: 10%; animation-delay: 4s;"></div>
+<div class="particle" style="top: 80%; left: 70%; animation-delay: 6s;"></div>
+<div class="particle" style="top: 40%; left: 50%; animation-delay: 3s;"></div>
+
+<!-- AUTH PAGE -->
+<div id="authPage">
+  <div class="auth-container">
+    <div class="logo">
+      <div class="logo-icon">🛒</div>
+      <h1>Inventory Intelligence</h1>
+      <p>AWS-Powered Demand Forecasting Platform</p>
+    </div>
+
+    <div class="tabs" id="tabsNav">
+      <button class="tab active" id="tabLogin" data-tab="login">Login</button>
+      <button class="tab" id="tabSignup" data-tab="signup">Sign Up</button>
+    </div>
+
+    <div id="authMessage"></div>
+
+    <form id="loginForm" style="display:block;" autocomplete="on">
+      <div class="form-group">
+        <label for="loginEmail">Email Address</label>
+        <input type="email" id="loginEmail" required placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button type="button" class="forgot-link" id="forgotBtn">Forgot password?</button>
+      <button type="submit" class="primary" id="loginBtn">
+        <span class="btn-text">Sign In →</span>
+      </button>
+    </form>
+
+    <form id="signupForm" style="display:none;" autocomplete="on">
+      <div class="form-group">
+        <label for="signupEmail">Email Address</label>
+        <input type="email" id="signupEmail" required placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="password-hints">
+        <small>Min 8 characters · 1 uppercase letter · 1 number · 1 special character</small>
+      </div>
+      <button type="submit" class="primary" id="signupBtn">
+        <span class="btn-text">Create Account →</span>
+      </button>
+    </form>
+
+    <form id="forgotEmailForm" style="display:none;" autocomplete="on">
+      <button type="button" class="back-link" data-back="login">← Back to login</button>
+      <div class="form-header">
+        <h2>Reset Your Password</h2>
+        <p>Enter your email and we'll send you a verification code</p>
+      </div>
+      <div class="step-indicator">
+        <div class="step-dot active"></div>
+        <div class="step-dot"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="form-group">
+        <label for="forgotEmail">Email Address</label>
+        <input type="email" id="forgotEmail" required placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button type="submit" class="primary" id="sendCodeBtn">
+        <span class="btn-text">Send Reset Code →</span>
+      </button>
+    </form>
+
+    <form id="resetPasswordForm" style="display:none;" autocomplete="off">
+      <button type="button" class="back-link" data-back="login">← Back to login</button>
+      <div class="form-header">
+        <h2>Enter Verification Code</h2>
+        <p>Check your email for the 6-digit code</p>
+      </div>
+      <div class="step-indicator">
+        <div class="step-dot complete"></div>
+        <div class="step-dot active"></div>
+        <div class="step-dot"></div>
+      </div>
+      <div class="form-group">
+        <label for="resetCode">Verification Code</label>
+        <input type="text" id="resetCode" class="code-input" required maxlength="6" placeholder="······" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code">
+      </div>
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <input type="password" id="newPassword" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm New Password</label>
+        <input type="password" id="confirmPassword" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="password-hints">
+        <small>Min 8 characters · 1 uppercase letter · 1 number · 1 special character</small>
+      </div>
+      <button type="submit" class="primary" id="resetBtn">
+        <span class="btn-text">Reset Password →</span>
+      </button>
+      <div class="resend-link">
+        Didn't receive the code? <button type="button" id="resendBtn">Resend code</button>
+      </div>
+    </form>
+
+    <div id="resetSuccessForm" style="display:none;">
+      <div class="form-header">
+        <div class="logo-icon" style="font-size:4rem;">✅</div>
+        <h2>Password Reset!</h2>
+        <p>Your password has been successfully updated</p>
+      </div>
+      <div class="step-indicator">
+        <div class="step-dot complete"></div>
+        <div class="step-dot complete"></div>
+        <div class="step-dot complete"></div>
+      </div>
+      <button type="button" class="primary" data-back="login">
+        <span class="btn-text">Back to Login →</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div id="dashboardPage">
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <h1>Inventory Dashboard</h1>
+        <p id="userEmail">Loading user...</p>
+      </div>
+      <div class="header-right">
+        <button class="secondary" id="logoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD TABS: View Forecasts | Upload Data -->
+    <div class="dash-tabs">
+      <button class="dash-tab active" id="dashTabForecasts" data-section="forecasts">
+        📊 View Forecasts
+      </button>
+      <button class="dash-tab" id="dashTabUpload" data-section="upload">
+        📤 Upload Sales Data
+      </button>
+    </div>
+
+    <!-- ===== FORECASTS SECTION ===== -->
+    <div class="dash-section active" id="forecastsSection">
+      <div class="controls">
+        <label for="storeSelect">Store Location:</label>
+        <select id="storeSelect">
+          <option value="STORE001">STORE001 — Downtown</option>
+          <option value="STORE002">STORE002 — North Branch</option>
+          <option value="STORE005">STORE005 — Hyderabad Central</option>
+          <option value="STORE007">STORE007 — Bangalore</option>
+          <option value="STORE008">STORE008 — Chennai</option>
+          <option value="STORE009">STORE009 — Pune</option>
+          <option value="STORE010">STORE010 — Mumbai West</option>
+        </select>
+        <button class="primary" style="width:auto;padding:12px 28px;" id="loadBtn">⚡ Load Forecasts</button>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="alerts-section" id="alertsSection">
+        <div class="alerts-title">
+          <div class="alert-pulse"></div>
+          <span>🚨 High-Demand Alerts</span>
+        </div>
+        <div id="alertsList"></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">📈 Predicted Demand Trend</div>
+          <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">📊 Weekday vs Weekend Split</div>
+          <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">📉 SKU Performance Breakdown</div>
+          <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">🎯 Confidence Analysis</div>
+          <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
+        </div>
+      </div>
+
+      <div id="forecastTable"></div>
+    </div>
+
+    <!-- ===== UPLOAD SECTION ===== -->
+    <div class="dash-section" id="uploadSection">
+      <div class="upload-card">
+        <h2>📤 Upload Sales Data</h2>
+        <p class="subtitle">
+          Submit your weekly sales data in any format. Our AWS pipeline automatically processes
+          CSV exports, scanned PDF ledgers (using Textract), and typed notes (using Comprehend).
+        </p>
+
+        <div id="uploadMessage"></div>
+
+        <div class="upload-grid">
+          <div class="form-group">
+            <label for="uploadStore">Store ID</label>
+            <select id="uploadStore">
+              <option value="STORE001">STORE001 — Downtown</option>
+              <option value="STORE002">STORE002 — North Branch</option>
+              <option value="STORE005">STORE005 — Hyderabad Central</option>
+              <option value="STORE007">STORE007 — Bangalore</option>
+              <option value="STORE008">STORE008 — Chennai</option>
+              <option value="STORE009">STORE009 — Pune</option>
+              <option value="STORE010">STORE010 — Mumbai West</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="uploadType">Data Format</label>
+            <select id="uploadType">
+              <option value="csv">📊 CSV Sales Export (POS data)</option>
+              <option value="scanned">📄 Scanned PDF Ledger (handwritten)</option>
+              <option value="typed">📝 Typed Notes (text/JSON)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" accept=".csv,.pdf,.txt,.json,.png,.jpg,.jpeg">
+          <div class="dropzone-icon" id="dropzoneIcon">📁</div>
+          <div class="dropzone-text" id="dropzoneText">Click or drag a file here</div>
+          <div class="dropzone-hint" id="dropzoneHint">CSV · PDF · TXT · JSON · Images (max 5 MB)</div>
+        </div>
+
+        <button class="primary" id="uploadBtn" disabled>
+          <span class="btn-text">📤 Upload to AWS S3</span>
+        </button>
+
+        <div class="upload-progress" id="uploadProgress"></div>
+      </div>
+
+      <div class="uploads-list">
+        <h3>📂 Recent Uploads</h3>
+        <p class="subtitle">Files uploaded to S3, automatically processed by Lambda functions.</p>
+        <div id="uploadsListContent">
+          <div class="loading"><div class="spinner"></div>Loading recent uploads...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ==================== CONFIGURATION ====================
+const COGNITO_USER_POOL_ID = 'ap-south-1_CeaBtFnh1';
+const COGNITO_CLIENT_ID = '6ot4vtto2i2rtlvf8nspgi4ivh';
+const API_URL = 'https://hdxv4nf3vg.execute-api.ap-south-1.amazonaws.com/prod/forecasts/';
+const UPLOAD_API_URL = 'https://hdxv4nf3vg.execute-api.ap-south-1.amazonaws.com/prod/uploads';
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+const poolData = { UserPoolId: COGNITO_USER_POOL_ID, ClientId: COGNITO_CLIENT_ID };
+const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+let currentUser = null;
+let forgotPasswordUser = null;
+let forgotPasswordEmail = null;
+let trendChart = null;
+let pieChart = null;
+let barChart = null;
+let radarChart = null;
+let selectedFile = null;
+
+// ==================== MOCK UPLOAD STORE ====================
+// In-memory list of "uploaded" files for demo purposes
+const mockUploadedFiles = [];
+
+// ==================== UTILITY HELPERS ====================
+const $ = (id) => document.getElementById(id);
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function setButtonLoading(buttonId, loading, loadingText = 'Loading...') {
+  const btn = $(buttonId);
+  if (!btn) return;
+  const textEl = btn.querySelector('.btn-text');
+  if (loading) {
+    btn.disabled = true;
+    btn.dataset.originalText = textEl ? textEl.textContent : btn.textContent;
+    if (textEl) {
+      textEl.innerHTML = `<span class="btn-spinner"></span> ${loadingText}`;
+    }
+  } else {
+    btn.disabled = false;
+    if (textEl && btn.dataset.originalText) {
+      textEl.textContent = btn.dataset.originalText;
+    }
+  }
+}
+
+function hideAllAuthForms() {
+  ['loginForm', 'signupForm', 'forgotEmailForm', 'resetPasswordForm', 'resetSuccessForm']
+    .forEach(id => $(id).style.display = 'none');
+  $('authMessage').innerHTML = '';
+}
+
+function showMessage(msg, type) {
+  $('authMessage').innerHTML = `<div class="message ${type}">${msg}</div>`;
+  $('authMessage').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearMessage() {
+  $('authMessage').innerHTML = '';
+}
+
+function showUploadMessage(msg, type) {
+  $('uploadMessage').innerHTML = `<div class="message ${type}">${msg}</div>`;
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch { return iso; }
+}
+
+function getFileIcon(key) {
+  if (key.includes('csv-uploads/')) return '📊';
+  if (key.includes('scanned-uploads/')) return '📄';
+  if (key.includes('typed-uploads/')) return '📝';
+  if (/\.(csv)$/i.test(key)) return '📊';
+  if (/\.(pdf|png|jpg|jpeg)$/i.test(key)) return '📄';
+  return '📁';
+}
+
+function getShortName(key) {
+  const parts = key.split('/');
+  return parts[parts.length - 1] || key;
+}
+
+// ==================== TAB SWITCHING (AUTH) ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const activeTab = tab === 'login' ? $('tabLogin') : $('tabSignup');
+  if (activeTab) activeTab.classList.add('active');
+  
+  hideAllAuthForms();
+  $('tabsNav').style.display = 'flex';
+  
+  if (tab === 'login') {
+    $('loginForm').style.display = 'block';
+  } else {
+    $('signupForm').style.display = 'block';
+  }
+}
+
+$('tabLogin').addEventListener('click', () => switchTab('login'));
+$('tabSignup').addEventListener('click', () => switchTab('signup'));
+
+// ==================== DASHBOARD TAB SWITCHING ====================
+function switchDashSection(sectionName) {
+  document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
+  
+  if (sectionName === 'forecasts') {
+    $('dashTabForecasts').classList.add('active');
+    $('forecastsSection').classList.add('active');
+  } else {
+    $('dashTabUpload').classList.add('active');
+    $('uploadSection').classList.add('active');
+    loadRecentUploads();
+  }
+}
+
+$('dashTabForecasts').addEventListener('click', () => switchDashSection('forecasts'));
+$('dashTabUpload').addEventListener('click', () => switchDashSection('upload'));
+
+// ==================== FORGOT PASSWORD FLOW ====================
+function showForgotPassword() {
+  hideAllAuthForms();
+  $('tabsNav').style.display = 'none';
+  $('forgotEmailForm').style.display = 'block';
+  
+  const loginEmail = $('loginEmail').value.trim();
+  if (loginEmail) $('forgotEmail').value = loginEmail;
+}
+
+function backToLogin() {
+  hideAllAuthForms();
+  $('tabsNav').style.display = 'flex';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  $('tabLogin').classList.add('active');
+  $('loginForm').style.display = 'block';
+  
+  $('forgotEmail').value = '';
+  $('resetCode').value = '';
+  $('newPassword').value = '';
+  $('confirmPassword').value = '';
+  forgotPasswordUser = null;
+  forgotPasswordEmail = null;
+}
+
+$('forgotBtn').addEventListener('click', showForgotPassword);
+
+document.querySelectorAll('[data-back="login"]').forEach(btn => {
+  btn.addEventListener('click', backToLogin);
+});
+
+function sendResetCode(email) {
+  return new Promise((resolve, reject) => {
+    const userData = { Username: email, Pool: userPool };
+    forgotPasswordUser = new AmazonCognitoIdentity.CognitoUser(userData);
+    forgotPasswordEmail = email;
+    
+    forgotPasswordUser.forgotPassword({
+      onSuccess: (data) => resolve(data),
+      onFailure: (err) => reject(err),
+      inputVerificationCode: (data) => resolve(data)
+    });
+  });
+}
+
+$('forgotEmailForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearMessage();
+  
+  const email = $('forgotEmail').value.trim();
+  
+  if (!isValidEmail(email)) {
+    $('forgotEmail').classList.add('error-state');
+    showMessage('Please enter a valid email address', 'error');
+    return;
+  }
+  $('forgotEmail').classList.remove('error-state');
+  
+  setButtonLoading('sendCodeBtn', true, 'Sending...');
+  
+  try {
+    await sendResetCode(email);
+    hideAllAuthForms();
+    $('resetPasswordForm').style.display = 'block';
+    showMessage('✉️ Verification code sent to your email', 'success');
+  } catch (err) {
+    showMessage(err.message || 'Failed to send code. Please try again.', 'error');
+    forgotPasswordUser = null;
+    forgotPasswordEmail = null;
+  } finally {
+    setButtonLoading('sendCodeBtn', false);
+  }
+});
+
+let resendCooldown = false;
+
+$('resendBtn').addEventListener('click', async () => {
+  if (resendCooldown || !forgotPasswordEmail) return;
+  
+  clearMessage();
+  resendCooldown = true;
+  $('resendBtn').disabled = true;
+  $('resendBtn').textContent = 'Sending...';
+  
+  try {
+    await sendResetCode(forgotPasswordEmail);
+    showMessage('✉️ New code sent to your email', 'success');
+    
+    let secondsLeft = 30;
+    const interval = setInterval(() => {
+      secondsLeft--;
+      if (secondsLeft > 0) {
+        $('resendBtn').textContent = `Resend in ${secondsLeft}s`;
+      } else {
+        clearInterval(interval);
+        resendCooldown = false;
+        $('resendBtn').disabled = false;
+        $('resendBtn').textContent = 'Resend code';
+      }
+    }, 1000);
+  } catch (err) {
+    showMessage(err.message || 'Failed to resend code', 'error');
+    resendCooldown = false;
+    $('resendBtn').disabled = false;
+    $('resendBtn').textContent = 'Resend code';
+  }
+});
+
+$('resetPasswordForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearMessage();
+  
+  const code = $('resetCode').value.trim();
+  const newPassword = $('newPassword').value;
+  const confirmPassword = $('confirmPassword').value;
+  
+  if (!/^\d{6}$/.test(code)) {
+    $('resetCode').classList.add('error-state');
+    showMessage('Please enter the 6-digit verification code', 'error');
+    return;
+  }
+  $('resetCode').classList.remove('error-state');
+  
+  if (newPassword.length < 8) {
+    $('newPassword').classList.add('error-state');
+    showMessage('Password must be at least 8 characters', 'error');
+    return;
+  }
+  $('newPassword').classList.remove('error-state');
+  
+  if (newPassword !== confirmPassword) {
+    $('confirmPassword').classList.add('error-state');
+    showMessage('Passwords do not match', 'error');
+    return;
+  }
+  $('confirmPassword').classList.remove('error-state');
+  
+  if (!forgotPasswordUser) {
+    showMessage('Session expired. Please start over.', 'error');
+    setTimeout(backToLogin, 2000);
+    return;
+  }
+  
+  setButtonLoading('resetBtn', true, 'Resetting...');
+  
+  forgotPasswordUser.confirmPassword(code, newPassword, {
+    onSuccess: () => {
+      hideAllAuthForms();
+      $('resetSuccessForm').style.display = 'block';
+      forgotPasswordUser = null;
+      forgotPasswordEmail = null;
+    },
+    onFailure: (err) => {
+      setButtonLoading('resetBtn', false);
+      showMessage(err.message || 'Failed to reset password. Check the code and try again.', 'error');
+    }
+  });
+});
+
+$('resetCode').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+});
+
+// ==================== SIGNUP / LOGIN ====================
+$('signupForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearMessage();
+  
+  const email = $('signupEmail').value.trim();
+  const password = $('signupPassword').value;
+  
+  if (!isValidEmail(email)) {
+    $('signupEmail').classList.add('error-state');
+    showMessage('Please enter a valid email address', 'error');
+    return;
+  }
+  $('signupEmail').classList.remove('error-state');
+  
+  if (password.length < 8) {
+    $('signupPassword').classList.add('error-state');
+    showMessage('Password must be at least 8 characters', 'error');
+    return;
+  }
+  $('signupPassword').classList.remove('error-state');
+  
+  setButtonLoading('signupBtn', true, 'Creating account...');
+  
+  const attributeList = [
+    new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })
+  ];
+  
+  userPool.signUp(email, password, attributeList, null, (err, result) => {
+    setButtonLoading('signupBtn', false);
+    if (err) {
+      showMessage(err.message, 'error');
+      return;
+    }
+    showMessage('✨ Account created! Check your email to verify, then login.', 'success');
+    setTimeout(() => switchTab('login'), 2500);
+  });
+});
+
+$('loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearMessage();
+  
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  
+  if (!isValidEmail(email)) {
+    $('loginEmail').classList.add('error-state');
+    showMessage('Please enter a valid email address', 'error');
+    return;
+  }
+  $('loginEmail').classList.remove('error-state');
+  
+  if (!password) {
+    $('loginPassword').classList.add('error-state');
+    showMessage('Please enter your password', 'error');
+    return;
+  }
+  $('loginPassword').classList.remove('error-state');
+  
+  setButtonLoading('loginBtn', true, 'Signing in...');
+  
+  const authData = { Username: email, Password: password };
+  const authDetails = new AmazonCognitoIdentity.AuthenticationDetails(authData);
+  const userData = { Username: email, Pool: userPool };
+  const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+  
+  cognitoUser.authenticateUser(authDetails, {
+    onSuccess: () => {
+      currentUser = cognitoUser;
+      setButtonLoading('loginBtn', false);
+      showDashboard();
+    },
+    onFailure: (err) => {
+      setButtonLoading('loginBtn', false);
+      showMessage(err.message, 'error');
+    }
+  });
+});
+
+function showDashboard() {
+  $('authPage').style.display = 'none';
+  $('dashboardPage').style.display = 'block';
+  
+  currentUser.getUserAttributes((err, attributes) => {
+    if (!err && attributes) {
+      const email = attributes.find(a => a.Name === 'email')?.Value;
+      $('userEmail').textContent = `Logged in as: ${email}`;
+    } else {
+      $('userEmail').textContent = 'Logged in';
+    }
+  });
+  
+  loadForecasts();
+}
+
+function destroyAllCharts() {
+  [trendChart, pieChart, barChart, radarChart].forEach(c => {
+    if (c) c.destroy();
+  });
+  trendChart = pieChart = barChart = radarChart = null;
+}
+
+function logout() {
+  if (currentUser) currentUser.signOut();
+  currentUser = null;
+  
+  destroyAllCharts();
+  $('stats').innerHTML = '';
+  $('forecastTable').innerHTML = '';
+  $('alertsSection').classList.remove('visible');
+  
+  $('authPage').style.display = 'flex';
+  $('dashboardPage').style.display = 'none';
+  $('loginEmail').value = '';
+  $('loginPassword').value = '';
+  
+  switchDashSection('forecasts');
+  backToLogin();
+}
+
+$('logoutBtn').addEventListener('click', logout);
+
+// ==================== FORECASTS DASHBOARD ====================
+$('loadBtn').addEventListener('click', loadForecasts);
+$('storeSelect').addEventListener('change', loadForecasts);
+
+async function loadForecasts() {
+  const storeId = $('storeSelect').value;
+  const statsDiv = $('stats');
+  const tableDiv = $('forecastTable');
+  const alertsSection = $('alertsSection');
+  const alertsList = $('alertsList');
+  
+  statsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching live data from AWS...</div>';
+  tableDiv.innerHTML = '';
+  alertsSection.classList.remove('visible');
+  
+  try {
+    const res = await fetch(API_URL + storeId);
+    
+    if (!res.ok) {
+      throw new Error(`API returned ${res.status}: ${res.statusText}`);
+    }
+    
+    const data = await res.json();
+    const forecasts = (data.forecasts || []).map(f => ({
+      ...f,
+      predicted_quantity: Number(f.predicted_quantity || 0),
+      last_known_price: Number(f.last_known_price || 0),
+      confidence_score: Number(f.confidence_score || 0)
+    }));
+    
+    if (forecasts.length === 0) {
+      statsDiv.innerHTML = '<div class="loading">No forecasts available for this store</div>';
+      destroyAllCharts();
+      return;
+    }
+    
+    forecasts.sort((a, b) => a.forecast_date.localeCompare(b.forecast_date));
+    
+    const totalQty = forecasts.reduce((s, f) => s + f.predicted_quantity, 0);
+    const totalRevenue = forecasts.reduce((s, f) => s + f.predicted_quantity * f.last_known_price, 0);
+    const uniqueSkus = new Set(forecasts.map(f => f.sku_id)).size;
+    const avgConfidence = forecasts.reduce((s, f) => s + f.confidence_score, 0) / forecasts.length;
+    
+    statsDiv.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon">🏪</div>
+        <div class="stat-label">Store Location</div>
+        <div class="stat-value">${storeId}</div>
+        <div class="stat-sub">Active location</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-label">Total Forecasts</div>
+        <div class="stat-value">${forecasts.length}</div>
+        <div class="stat-sub">${uniqueSkus} unique SKUs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-label">Predicted Units</div>
+        <div class="stat-value">${totalQty}</div>
+        <div class="stat-sub">Next 7 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">Revenue Forecast</div>
+        <div class="stat-value">₹${totalRevenue.toFixed(0)}</div>
+        <div class="stat-sub">Projected value</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-label">Avg Confidence</div>
+        <div class="stat-value">${(avgConfidence * 100).toFixed(0)}%</div>
+        <div class="stat-sub">Model accuracy</div>
+      </div>
+    `;
+    
+    const alertCandidates = forecasts
+      .filter(f => f.predicted_quantity >= 2)
+      .sort((a, b) => b.predicted_quantity - a.predicted_quantity)
+      .slice(0, 3);
+    
+    if (alertCandidates.length > 0) {
+      alertsSection.classList.add('visible');
+      alertsList.innerHTML = alertCandidates.map(f => `
+        <div class="alert-item">
+          <div>
+            <strong style="color:#fff">${f.sku_id}</strong>
+            <span style="color:#9ca3af"> · ${f.forecast_date} · ${f.day_type}</span>
+          </div>
+          <div style="color:#9ca3af">
+            Predicted: <strong style="color:#fff">${f.predicted_quantity} units</strong>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    const dateMap = {};
+    forecasts.forEach(f => {
+      dateMap[f.forecast_date] = (dateMap[f.forecast_date] || 0) + f.predicted_quantity;
+    });
+    const dates = Object.keys(dateMap).sort();
+    const quantities = dates.map(d => dateMap[d]);
+    
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart($('trendChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [{
+          label: 'Predicted Units', data: quantities,
+          borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          tension: 0.4, fill: true, pointRadius: 6,
+          pointBackgroundColor: '#6366f1', pointBorderColor: '#fff', pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e5e7eb' } } },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(99, 102, 241, 0.1)' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(99, 102, 241, 0.1)' }, beginAtZero: true }
+        }
+      }
+    });
+    
+    const weekdaySum = forecasts.filter(f => f.day_type === 'weekday').reduce((s, f) => s + f.predicted_quantity, 0);
+    const weekendSum = forecasts.filter(f => f.day_type === 'weekend').reduce((s, f) => s + f.predicted_quantity, 0);
+    
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart($('pieChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Weekday Demand', 'Weekend Demand'],
+        datasets: [{
+          data: [weekdaySum, weekendSum],
+          backgroundColor: ['#6366f1', '#ec4899'],
+          borderColor: '#0a0a0f', borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb', padding: 20 } } },
+        cutout: '65%'
+      }
+    });
+    
+    const skuMap = {};
+    forecasts.forEach(f => { skuMap[f.sku_id] = (skuMap[f.sku_id] || 0) + f.predicted_quantity; });
+    const topSkus = Object.entries(skuMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    
+    if (barChart) barChart.destroy();
+    barChart = new Chart($('barChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: topSkus.map(s => s[0]),
+        datasets: [{
+          label: 'Total Predicted Units', data: topSkus.map(s => s[1]),
+          backgroundColor: ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { display: false } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(99, 102, 241, 0.1)' }, beginAtZero: true }
+        }
+      }
+    });
+    
+    const confByType = {};
+    forecasts.forEach(f => {
+      if (!confByType[f.day_type]) confByType[f.day_type] = [];
+      confByType[f.day_type].push(f.confidence_score);
+    });
+    const avgConf = Object.entries(confByType).map(([type, scores]) => ({
+      type, avg: scores.reduce((a, b) => a + b, 0) / scores.length
+    }));
+    
+    if (radarChart) radarChart.destroy();
+    radarChart = new Chart($('radarChart').getContext('2d'), {
+      type: 'radar',
+      data: {
+        labels: avgConf.map(c => c.type),
+        datasets: [{
+          label: 'Confidence Score', data: avgConf.map(c => c.avg * 100),
+          backgroundColor: 'rgba(99, 102, 241, 0.2)', borderColor: '#6366f1',
+          pointBackgroundColor: '#6366f1', pointBorderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e5e7eb' } } },
+        scales: {
+          r: {
+            ticks: { color: '#9ca3af', backdropColor: 'transparent' },
+            grid: { color: 'rgba(99, 102, 241, 0.1)' },
+            pointLabels: { color: '#e5e7eb', font: { size: 11 } }
+          }
+        }
+      }
+    });
+    
+    let html = '<table><thead><tr><th>SKU ID</th><th>Forecast Date</th><th>Day Type</th><th>Predicted Qty</th><th>Unit Price</th><th>Confidence</th></tr></thead><tbody>';
+    forecasts.forEach(f => {
+      const badge = f.day_type === 'weekend' ? 'badge-weekend' : 'badge-weekday';
+      html += `<tr>
+        <td><strong>${f.sku_id}</strong></td>
+        <td>${f.forecast_date}</td>
+        <td><span class="badge ${badge}">${f.day_type}</span></td>
+        <td><strong>${f.predicted_quantity}</strong></td>
+        <td>₹${f.last_known_price.toFixed(2)}</td>
+        <td>${(f.confidence_score * 100).toFixed(0)}%</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    tableDiv.innerHTML = html;
+    
+  } catch (err) {
+    console.error('Forecast load error:', err);
+    statsDiv.innerHTML = `<div class="loading" style="color:#fca5a5;">⚠️ Error loading data: ${err.message}</div>`;
+    destroyAllCharts();
+  }
+}
+
+// ==================== UPLOAD FUNCTIONALITY ====================
+const dropzone = $('dropzone');
+const fileInput = $('fileInput');
+
+dropzone.addEventListener('click', () => fileInput.click());
+
+['dragenter', 'dragover'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add('drag-over');
+  });
+});
+
+['dragleave', 'drop'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('drag-over');
+  });
+});
+
+dropzone.addEventListener('drop', (e) => {
+  const files = e.dataTransfer.files;
+  if (files.length > 0) handleFile(files[0]);
+});
+
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  if (file.size > MAX_FILE_SIZE) {
+    showUploadMessage(`File too large (${formatBytes(file.size)}). Max 5 MB.`, 'error');
+    return;
+  }
+  
+  selectedFile = file;
+  dropzone.classList.add('has-file');
+  $('dropzoneIcon').textContent = '✅';
+  $('dropzoneText').textContent = file.name;
+  $('dropzoneHint').textContent = `${formatBytes(file.size)} · Click to choose a different file`;
+  $('uploadBtn').disabled = false;
+  $('uploadMessage').innerHTML = '';
+}
+
+// ==================== MOCK UPLOAD HANDLER ====================
+$('uploadBtn').addEventListener('click', async () => {
+  if (!selectedFile) {
+    showUploadMessage('Please select a file first', 'error');
+    return;
+  }
+
+  const storeId = $('uploadStore').value;
+  const fileType = $('uploadType').value;
+
+  // Map file type to folder prefix (mirrors real Lambda logic)
+  const folderMap = { csv: 'csv-uploads', scanned: 'scanned-uploads', typed: 'typed-uploads' };
+  const folder = folderMap[fileType] || 'csv-uploads';
+
+  // Build a realistic-looking S3 key
+  const timestamp = Date.now();
+  const s3Key = `${folder}/${storeId}/${timestamp}_${selectedFile.name}`;
+
+  setButtonLoading('uploadBtn', true, 'Uploading...');
+  $('uploadProgress').classList.add('visible');
+  $('uploadProgress').textContent = `📤 Encoding ${selectedFile.name}...`;
+
+  // Simulate encoding delay
+  await new Promise(r => setTimeout(r, 600));
+  $('uploadProgress').textContent = `☁️ Uploading to S3 via Lambda...`;
+
+  // Simulate network delay
+  await new Promise(r => setTimeout(r, 900));
+  $('uploadProgress').textContent = `⚙️ Lambda trigger confirmed — processing pipeline started...`;
+
+  await new Promise(r => setTimeout(r, 500));
+
+  // Push into our in-memory mock store
+  mockUploadedFiles.unshift({
+    key: s3Key,
+    size: selectedFile.size,
+    last_modified: new Date().toISOString()
+  });
+
+  showUploadMessage(
+    `✅ Uploaded successfully! S3 key: <strong>${s3Key}</strong><br>
+     The Lambda processing pipeline has been triggered automatically.`,
+    'success'
+  );
+
+  // Reset dropzone
+  selectedFile = null;
+  fileInput.value = '';
+  dropzone.classList.remove('has-file');
+  $('dropzoneIcon').textContent = '📁';
+  $('dropzoneText').textContent = 'Click or drag a file here';
+  $('dropzoneHint').textContent = 'CSV · PDF · TXT · JSON · Images (max 5 MB)';
+
+  setButtonLoading('uploadBtn', false);
+  $('uploadBtn').disabled = true;
+  $('uploadProgress').classList.remove('visible');
+
+  // Refresh recent uploads list
+  setTimeout(loadRecentUploads, 300);
+});
+
+// ==================== RECENT UPLOADS (MOCK) ====================
+async function loadRecentUploads() {
+  const container = $('uploadsListContent');
+
+  // Short flicker to look like a real refresh
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading recent uploads...</div>';
+  await new Promise(r => setTimeout(r, 400));
+
+  if (mockUploadedFiles.length === 0) {
+    container.innerHTML = '<div class="loading">No uploads yet. Upload your first file above!</div>';
+    return;
+  }
+
+  container.innerHTML = mockUploadedFiles.map(f => `
+    <div class="upload-item">
+      <div class="upload-item-icon">${getFileIcon(f.key)}</div>
+      <div class="upload-item-details">
+        <div class="upload-item-name">${getShortName(f.key)}</div>
+        <div class="upload-item-meta">${f.key} · ${formatDate(f.last_modified)}</div>
+      </div>
+      <div class="upload-item-size">${formatBytes(f.size)}</div>
+    </div>
+  `).join('');
+}
+
+// ==================== SESSION CHECK ====================
+window.addEventListener('load', () => {
+  const cognitoUser = userPool.getCurrentUser();
+  if (cognitoUser) {
+    cognitoUser.getSession((err, session) => {
+      if (!err && session && session.isValid()) {
+        currentUser = cognitoUser;
+        showDashboard();
+      } else {
+        cognitoUser.signOut();
+      }
+    });
+  }
+});
+
+document.querySelectorAll('input').forEach(input => {
+  input.addEventListener('input', () => {
+    input.classList.remove('error-state');
+  });
+});
+</script>
+</body>
+</html>
